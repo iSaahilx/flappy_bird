@@ -6,8 +6,8 @@ let boardHeight = 600;
 let context;
 
 //bird
-let birdWidth = 60; //increased size for landscape
-let birdHeight = 60; //square aspect ratio for bird.jpg
+let birdWidth = 70; //increased size for landscape
+let birdHeight = 70; //square aspect ratio for bird.jpg
 let birdX = boardWidth/8;
 let birdY = boardHeight/2;
 let birdImg;
@@ -30,7 +30,7 @@ let topPipeImg;
 let bottomPipeImg;
 
 //physics
-let velocityX = -3; //pipes moving left speed (slightly faster for landscape)
+let velocityX = -5; //pipes moving left speed (slightly faster for landscape)
 let velocityY = 0; //bird jump speed
 let gravity = 0.3; //slightly increased for larger bird
 
@@ -49,7 +49,7 @@ window.onload = function() {
 
     //load images
     birdImg = new Image();
-    birdImg.src = "./bird.jpg";
+    birdImg.src = "./bird.png";
     birdImg.onload = function() {
         context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
     }
@@ -61,7 +61,7 @@ window.onload = function() {
     bottomPipeImg.src = "./bottompipe.png";
 
     requestAnimationFrame(update);
-    setInterval(placePipes, 2500); //every 2.5 seconds - more space between pipe sets
+    setInterval(placePipes, 4000); //every 4 seconds - more space between pipe sets
     document.addEventListener("keydown", moveBird);
 }
 

@@ -63,6 +63,8 @@ let blurAmount = 0;
 let pauseStartTime = 0;
 let lastPauseCheck = 0;
 let currentRandomFact = "";
+let offscreenCanvas = null;
+let offscreenContext = null;
 
 const randomFacts = [
     "Honey never spoils. Archaeologists have found pots of honey in ancient Egyptian tombs that are over 3,000 years old and still perfectly edible!",
@@ -87,6 +89,12 @@ window.onload = function() {
     board.height = boardHeight;
     board.width = boardWidth;
     context = board.getContext("2d"); //used for drawing on the board
+    
+    // Create offscreen canvas for blur effect
+    offscreenCanvas = document.createElement("canvas");
+    offscreenCanvas.width = boardWidth;
+    offscreenCanvas.height = boardHeight;
+    offscreenContext = offscreenCanvas.getContext("2d");
 
     //draw flappy bird
     // context.fillStyle = "green";
@@ -133,12 +141,12 @@ function update() {
     // Update time
     let currentTime = Date.now();
     
-    // Check for random pause (every 5-15 seconds of gameplay)
+    // Check for random pause (every 15-20 seconds on average)
     if (!isPaused && gameStartTime > 0) {
         let timeSinceLastPause = currentTime - lastPauseCheck;
-        if (timeSinceLastPause > 5000) { // Check every 5 seconds
-            // 5% chance to pause each check
-            if (Math.random() < 0.05) {
+        if (timeSinceLastPause > 7000) { // Check every 7 seconds
+            // 25% chance to pause each check (averages to ~20 seconds between pauses)
+            if (Math.random() < 0.30) {
                 isPaused = true;
                 pauseStartTime = currentTime;
                 blurAmount = 0;
@@ -343,30 +351,53 @@ function formatTime(milliseconds) {
 function drawGameState() {
     // Draw the current game state (used for pause screen)
     context.clearRect(0, 0, board.width, board.height);
-    
+    drawGameStateToCanvas(context);
+}
+
+function drawGameStateToCanvas(ctx) {
+    // Draw the current game state to any canvas context
     //bird
-    context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+    ctx.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 
     //pipes
     for (let i = 0; i < pipeArray.length; i++) {
         let pipe = pipeArray[i];
-        context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
+        ctx.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
     }
 
     //display time
     let timeString = formatTime(elapsedTime);
-    context.fillStyle = "white";
-    context.font="45px sans-serif";
-    context.fillText(timeString, 5, 45);
+    ctx.fillStyle = "white";
+    ctx.font="45px sans-serif";
+    ctx.fillText(timeString, 5, 45);
 }
 
 function drawPausedScreen() {
     // Gradually increase blur
     let pauseDuration = Date.now() - pauseStartTime;
-    blurAmount = Math.min(pauseDuration / 20, 10); // Max blur of 10px, reached in 200ms
+    blurAmount = Math.min(pauseDuration / 20, 8); // Max blur of 8px, reached in 160ms
     
-    // Apply blur effect using semi-transparent overlay
-    context.fillStyle = `rgba(0, 0, 0, ${blurAmount * 0.05})`;
+    // Draw game state to offscreen canvas first
+    offscreenContext.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+    drawGameStateToCanvas(offscreenContext);
+    
+    // Clear main canvas
+    context.clearRect(0, 0, board.width, board.height);
+    
+    // Save context state
+    context.save();
+    
+    // Apply blur filter to the context (this will blur what we draw next)
+    context.filter = `blur(${blurAmount}px)`;
+    
+    // Draw the blurred game state from offscreen canvas
+    context.drawImage(offscreenCanvas, 0, 0);
+    
+    // Restore context (removes blur filter for text)
+    context.restore();
+    
+    // Apply semi-transparent dark overlay for better text visibility
+    context.fillStyle = `rgba(0, 0, 0, 0.5)`;
     context.fillRect(0, 0, board.width, board.height);
     
     // Draw "RANDOM FACT" title
@@ -425,6 +456,7 @@ function handleKeyPress(e) {
         if (isPaused) {
             isPaused = false;
             blurAmount = 0;
+            board.style.filter = 'none'; // Remove blur filter
             lastPauseCheck = Date.now();
             return;
         }

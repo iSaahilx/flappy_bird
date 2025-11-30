@@ -29,6 +29,8 @@ let pipeY = 0;
 let topPipeImg;
 let bottomPipeImg;
 let startBgImg;
+let gamestartImg;
+let gameoverImg;
 
 //physics
 let velocityX = -5; //pipes moving left speed (slightly faster for landscape)
@@ -65,6 +67,7 @@ let lastPauseCheck = 0;
 let currentRandomFact = "";
 let offscreenCanvas = null;
 let offscreenContext = null;
+let spacebarPressCount = 0; // Track spacebar presses during pause
 
 const randomFacts = [
     "Honey never spoils. Archaeologists have found pots of honey in ancient Egyptian tombs that are over 3,000 years old and still perfectly edible!",
@@ -116,9 +119,17 @@ window.onload = function() {
     // Load start screen background
     startBgImg = new Image();
     startBgImg.src = "./start.jpg";
-    startBgImg.onload = function() {
+    
+    // Load game start GIF
+    gamestartImg = new Image();
+    gamestartImg.src = "./gamestart.gif";
+    gamestartImg.onload = function() {
         drawStartScreen();
     }
+    
+    // Load game over GIF
+    gameoverImg = new Image();
+    gameoverImg.src = "./gameover.gif";
 
     requestAnimationFrame(update);
     setInterval(placePipes, 4000); //every 4 seconds - more space between pipe sets
@@ -150,6 +161,7 @@ function update() {
                 isPaused = true;
                 pauseStartTime = currentTime;
                 blurAmount = 0;
+                spacebarPressCount = 0; // Reset spacebar press counter
                 currentRandomFact = randomFacts[Math.floor(Math.random() * randomFacts.length)];
             }
             lastPauseCheck = currentTime;
@@ -278,48 +290,31 @@ function placePipes() {
 }
 
 function drawStartScreen() {
-    // Draw background if loaded
-    if (startBgImg && startBgImg.complete) {
+    // Draw background GIF if loaded
+    if (gamestartImg && gamestartImg.complete) {
+        context.drawImage(gamestartImg, 0, 0, boardWidth, boardHeight);
+    } else if (startBgImg && startBgImg.complete) {
+        // Fallback to old image
         context.drawImage(startBgImg, 0, 0, boardWidth, boardHeight);
     } else {
         // Fallback: clear with a color
         context.fillStyle = "#87CEEB";
         context.fillRect(0, 0, boardWidth, boardHeight);
     }
-    
-    // Draw title and instructions
-    context.fillStyle = "white";
-    context.font = "bold 60px sans-serif";
-    context.textAlign = "center";
-    context.fillText("FLAPPY BIRD", boardWidth/2, boardHeight/2 - 100);
-    
-    context.font = "30px sans-serif";
-    context.fillText("Press SPACE to Start", boardWidth/2, boardHeight/2 + 50);
-    context.textAlign = "left";
 }
 
 function drawGameOverScreen() {
-    // Draw background if loaded
-    if (startBgImg && startBgImg.complete) {
+    // Draw background GIF if loaded
+    if (gameoverImg && gameoverImg.complete) {
+        context.drawImage(gameoverImg, 0, 0, boardWidth, boardHeight);
+    } else if (startBgImg && startBgImg.complete) {
+        // Fallback to old image
         context.drawImage(startBgImg, 0, 0, boardWidth, boardHeight);
     } else {
         // Fallback: clear with a color
         context.fillStyle = "#87CEEB";
         context.fillRect(0, 0, boardWidth, boardHeight);
     }
-    
-    context.fillStyle = "white";
-    context.font = "bold 60px sans-serif";
-    context.textAlign = "center";
-    context.fillText("We lost a baby girl", boardWidth/2, boardHeight/2 - 50);
-    
-    let timeString = formatTime(elapsedTime);
-    context.font = "40px sans-serif";
-    context.fillText("Time: " + timeString, boardWidth/2, boardHeight/2 + 50);
-    
-    context.font = "30px sans-serif";
-    context.fillText("Press SPACE to Restart", boardWidth/2, boardHeight/2 + 120);
-    context.textAlign = "left";
 }
 
 function formatTime(milliseconds) {
@@ -444,20 +439,25 @@ function drawPausedScreen() {
     context.fillStyle = "white";
     context.strokeStyle = "black";
     context.lineWidth = 2;
-    context.strokeText("Press SPACE to continue", boardWidth/2, boardHeight - 50);
-    context.fillText("Press SPACE to continue", boardWidth/2, boardHeight - 50);
+    let instructionText = `Press SPACE ${3 - spacebarPressCount} more time${3 - spacebarPressCount !== 1 ? 's' : ''} to continue`;
+    context.strokeText(instructionText, boardWidth/2, boardHeight - 50);
+    context.fillText(instructionText, boardWidth/2, boardHeight - 50);
     
     context.textAlign = "left";
 }
 
 function handleKeyPress(e) {
     if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX") {
-        // Resume from pause
+        // Resume from pause (requires 3 spacebar presses)
         if (isPaused) {
-            isPaused = false;
-            blurAmount = 0;
-            board.style.filter = 'none'; // Remove blur filter
-            lastPauseCheck = Date.now();
+            spacebarPressCount++;
+            if (spacebarPressCount >= 3) {
+                isPaused = false;
+                blurAmount = 0;
+                spacebarPressCount = 0; // Reset counter
+                board.style.filter = 'none'; // Remove blur filter
+                lastPauseCheck = Date.now();
+            }
             return;
         }
         
@@ -483,6 +483,10 @@ function handleKeyPress(e) {
         
         // Reset game from game over screen
         if (gameOver) {
+            gameOver = false;
+            gameStarted = true; // Ensure game is started
+            isPaused = false;
+            spacebarPressCount = 0;
             bird.y = birdY;
             bird.x = birdX;
             velocityY = 0; // Reset velocity to prevent immediate fall
@@ -492,8 +496,6 @@ function handleKeyPress(e) {
             lastTimeUpdate = Date.now();
             lastPauseCheck = Date.now();
             currentTimeIncrementIndex = 0;
-            gameOver = false;
-            isPaused = false;
             showBirthMessage = true;
             birthMessageTime = Date.now();
         }

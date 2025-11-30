@@ -1,6 +1,9 @@
 body {
     font-family:'Courier New', Courier, monospace;
     text-align: center;
+    margin: 0;
+    padding: 0;
+    position: relative;
 }
 
 #board {
@@ -9,4 +12,15 @@ body {
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
+    position: relative;
+    z-index: 1;
+}
+
+#gamestart-gif, #gameover-gif {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    pointer-events: none;
 }

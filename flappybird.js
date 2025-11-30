@@ -31,6 +31,8 @@ let bottomPipeImg;
 let startBgImg;
 let gamestartImg;
 let gameoverImg;
+let gamestartGifElement;
+let gameoverGifElement;
 
 //physics
 let velocityX = -5; //pipes moving left speed (slightly faster for landscape)
@@ -93,6 +95,19 @@ window.onload = function() {
     board.width = boardWidth;
     context = board.getContext("2d"); //used for drawing on the board
     
+    // Get references to GIF elements and set their dimensions
+    gamestartGifElement = document.getElementById("gamestart-gif");
+    gameoverGifElement = document.getElementById("gameover-gif");
+    
+    if (gamestartGifElement) {
+        gamestartGifElement.width = boardWidth;
+        gamestartGifElement.height = boardHeight;
+    }
+    if (gameoverGifElement) {
+        gameoverGifElement.width = boardWidth;
+        gameoverGifElement.height = boardHeight;
+    }
+    
     // Create offscreen canvas for blur effect
     offscreenCanvas = document.createElement("canvas");
     offscreenCanvas.width = boardWidth;
@@ -147,6 +162,14 @@ function update() {
     if (gameOver) {
         drawGameOverScreen();
         return;
+    }
+    
+    // Hide GIFs during gameplay
+    if (gamestartGifElement) {
+        gamestartGifElement.style.display = "none";
+    }
+    if (gameoverGifElement) {
+        gameoverGifElement.style.display = "none";
     }
     
     // Update time
@@ -290,30 +313,44 @@ function placePipes() {
 }
 
 function drawStartScreen() {
-    // Draw background GIF if loaded
-    if (gamestartImg && gamestartImg.complete) {
-        context.drawImage(gamestartImg, 0, 0, boardWidth, boardHeight);
-    } else if (startBgImg && startBgImg.complete) {
-        // Fallback to old image
-        context.drawImage(startBgImg, 0, 0, boardWidth, boardHeight);
+    // Hide game over GIF if visible
+    if (gameoverGifElement) {
+        gameoverGifElement.style.display = "none";
+    }
+    
+    // Show animated start GIF
+    if (gamestartGifElement) {
+        gamestartGifElement.style.display = "block";
     } else {
-        // Fallback: clear with a color
-        context.fillStyle = "#87CEEB";
-        context.fillRect(0, 0, boardWidth, boardHeight);
+        // Fallback: draw static image to canvas
+        context.clearRect(0, 0, boardWidth, boardHeight);
+        if (startBgImg && startBgImg.complete) {
+            context.drawImage(startBgImg, 0, 0, boardWidth, boardHeight);
+        } else {
+            context.fillStyle = "#87CEEB";
+            context.fillRect(0, 0, boardWidth, boardHeight);
+        }
     }
 }
 
 function drawGameOverScreen() {
-    // Draw background GIF if loaded
-    if (gameoverImg && gameoverImg.complete) {
-        context.drawImage(gameoverImg, 0, 0, boardWidth, boardHeight);
-    } else if (startBgImg && startBgImg.complete) {
-        // Fallback to old image
-        context.drawImage(startBgImg, 0, 0, boardWidth, boardHeight);
+    // Hide start GIF if visible
+    if (gamestartGifElement) {
+        gamestartGifElement.style.display = "none";
+    }
+    
+    // Show animated game over GIF
+    if (gameoverGifElement) {
+        gameoverGifElement.style.display = "block";
     } else {
-        // Fallback: clear with a color
-        context.fillStyle = "#87CEEB";
-        context.fillRect(0, 0, boardWidth, boardHeight);
+        // Fallback: draw static image to canvas
+        context.clearRect(0, 0, boardWidth, boardHeight);
+        if (startBgImg && startBgImg.complete) {
+            context.drawImage(startBgImg, 0, 0, boardWidth, boardHeight);
+        } else {
+            context.fillStyle = "#87CEEB";
+            context.fillRect(0, 0, boardWidth, boardHeight);
+        }
     }
 }
 

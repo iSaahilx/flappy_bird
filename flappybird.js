@@ -1,13 +1,18 @@
 
 //board
 let board;
+let baseBoardWidth = 1050;
+let baseBoardHeight = 600;
 let boardWidth = 1050;
 let boardHeight = 600;
 let context;
+let scaleFactor = 1;
 
 //bird
-let birdWidth = 70; //increased size for landscape
-let birdHeight = 70; //square aspect ratio for bird.jpg
+let baseBirdWidth = 70; //increased size for landscape
+let baseBirdHeight = 70; //square aspect ratio for bird.jpg
+let birdWidth = 70;
+let birdHeight = 70;
 let birdX = boardWidth/8;
 let birdY = boardHeight/2;
 let birdImg;
@@ -21,8 +26,10 @@ let bird = {
 
 //pipes
 let pipeArray = [];
-let pipeWidth = 140; //increased for landscape
-let pipeHeight = 320; //adjusted for landscape height
+let basePipeWidth = 140; //increased for landscape
+let basePipeHeight = 320; //adjusted for landscape height
+let pipeWidth = 140;
+let pipeHeight = 320;
 let pipeX = boardWidth;
 let pipeY = 0;
 
@@ -35,9 +42,12 @@ let gamestartGifElement;
 let gameoverGifElement;
 
 //physics
-let velocityX = -5; //pipes moving left speed (slightly faster for landscape)
+let baseVelocityX = -5; //pipes moving left speed (slightly faster for landscape)
+let velocityX = -5;
 let velocityY = 0; //bird jump speed
-let gravity = 0.3; //slightly increased for larger bird
+let baseGravity = 0.3; //slightly increased for larger bird
+let gravity = 0.3;
+let baseJumpVelocity = -8; //bird jump velocity
 
 let gameOver = false;
 let gameStarted = false;
@@ -71,48 +81,148 @@ let offscreenCanvas = null;
 let offscreenContext = null;
 let spacebarPressCount = 0; // Track spacebar presses during pause
 
-const randomFacts = [
-    "Honey never spoils. Archaeologists have found pots of honey in ancient Egyptian tombs that are over 3,000 years old and still perfectly edible!",
-    "Octopuses have three hearts. Two pump blood to the gills, while the third pumps blood to the rest of the body.",
-    "Bananas are berries, but strawberries aren't. Botanically speaking, berries have seeds inside their flesh.",
-    "A day on Venus is longer than its year. Venus rotates so slowly that it takes 243 Earth days to complete one rotation, but only 225 Earth days to orbit the sun.",
-    "Sharks have been around longer than trees. Sharks have existed for over 400 million years, while trees appeared around 350 million years ago.",
-    "Wombat poop is cube-shaped. This unique shape helps prevent the droppings from rolling away on slopes.",
-    "A group of flamingos is called a 'flamboyance'.",
-    "Dolphins have names for each other. They use signature whistles to identify individual dolphins.",
-    "The human brain uses about 20% of the body's total energy, even though it only makes up about 2% of body weight.",
-    "There are more possible games of chess than atoms in the observable universe.",
-    "A single cloud can weigh more than a million pounds.",
-    "The shortest war in history lasted only 38-45 minutes. It was between Britain and Zanzibar in 1896.",
-    "Cleopatra lived closer in time to the Moon landing than to the construction of the Great Pyramid of Giza.",
-    "A group of owls is called a 'parliament'.",
-    "The human nose can detect over 1 trillion different scents."
+// End-game message system based on spacebar presses
+let totalSpacebarPresses = 0; // Track total spacebar presses during gameplay
+let showEndGameMessage = false; // Whether to show end-game message
+let currentEndGameMessage = ""; // Current end-game message to display
+let endGameMessagePressCount = 0; // Track spacebar presses on end-game message screen
+let selectedPressThreshold = 0; // Randomly selected threshold for this game
+let pressThresholds = [
+    {presses: 20, message: "A girl disappears from the statistics every few minutes; the numbers do not stop, even if the game does."},
+    {presses: 30, message: "The country reports improvement, yet thousands of daughters remain missing from the count."},
+    {presses: 40, message: "One more press, one more reminder: the girl-to-boy ratio still refuses to balance."},
+    {presses: 45, message: "State records show silence, but unrecorded cases speak a louder truth."},
+    {presses: 54, message: "Every hour, a daughter is denied her future; the file stays open, the report stays closed."},
+    {presses: 67, message: "Some districts gain awards for growth, yet their girl population shrinks in the background."},
+    {presses: 72, message: "The system claims progress; the missing daughters suggest otherwise."},
+    {presses: 80, message: "Census charts rise and fall, but the number of lost girls stays steady."},
+    {presses: 86, message: "One more press, one more reminder that many cases never reach any official record."},
+    {presses: 94, message: "For every 10 boys, several states still count fewer girls; the gap continues quietly."},
+    {presses: 99, message: "Reports say protection, tradition says otherwise; the daughters remain in between."},
+    {presses: 102, message: "Another press, another girl lost in the shadow of preference."},
+    {presses: 108, message: "The numbers improve on paper, but the ground reality stays unchanged."},
+    {presses: 115, message: "Some families welcome sons with drums; daughters leave the records with silence."},
+    {presses: 123, message: "Statistics glitch every year, not because of error, but because too many girls are missing."},
+    {presses: 129, message: "The map shows development, yet several regions remain unsafe for newborn girls."},
+    {presses: 135, message: "Every press counts; every missing girl does too — the system simply does not show it."},
+    {presses: 150, message: "Game complete. Reality incomplete. The number of daughters still does not match the promise."}
 ];
+
+const randomFacts = [
+    "Haryana continues to lead in the silent competition of missing daughters.",
+    "Punjab grows crops well, but the number of girls keeps shrinking.",
+    "Rajasthan protects its forts better than its newborn girls.",
+    "Uttar Pradesh has a high population, but girl births remain strangely low.",
+    "Gujarat manages business perfectly, except the business of giving girls a chance to live.",
+    "Maharashtra is rich in finance, but poor in surviving daughters.",
+    "Rural Rajasthan still treats sons like assets and daughters like liabilities.",
+    "Bihar's culture is strong, yet girl children remain weak in safety.",
+    "Jharkhand once respected mother figures, but the numbers now tell a harsher story.",
+    "West Bengal speaks of progress, while its girl count quietly disagrees.",
+    "Tamil Nadu developed fast, but daughter protection developed slowly.",
+    "Karnataka builds modern cities, but rural areas still delete daughters before birth.",
+    "Andhra and Telangana grow in technology, including silent misuse for sex selection.",
+    "Madhya Pradesh is the heart of India, but its heartbeat for girls stays low.",
+    "Chhattisgarh holds many resources, yet daughters remain the rarest one.",
+    "Some tribal societies once valued girls, but modern influence changed the tradition.",
+    "Upper caste families defend 'honor,' often at the cost of a newborn girl.",
+    "Lower castes face blame, while upper castes hide their own numbers.",
+    "In many villages, the well remembers more lost girls than the census.",
+    "Some midwives still ask if the family 'wants the baby to live.'",
+    "Old houses whisper stories of daughters who never got named.",
+    "The silence around girl births speaks louder than reports.",
+    "Some families keep traditions alive by keeping daughters silent.",
+    "The country celebrates Girl Child Day, while reality stays unchanged the rest of the year.",
+    "Schemes promise safety, but society promises preference.",
+    "Bans exist on sex detection, but patriarchy finds its own method.",
+    "The statistics show progress, but the ground shows hesitation.",
+    "Saving daughters remains a slogan, not a daily practice."
+];
+
+function calculateCanvasSize() {
+    const aspectRatio = baseBoardWidth / baseBoardHeight; // 1.75
+    const maxWidth = window.innerWidth;
+    const maxHeight = window.innerHeight;
+    
+    let newWidth = maxWidth;
+    let newHeight = newWidth / aspectRatio;
+    
+    // If height exceeds viewport, scale based on height instead
+    if (newHeight > maxHeight) {
+        newHeight = maxHeight;
+        newWidth = newHeight * aspectRatio;
+    }
+    
+    boardWidth = Math.floor(newWidth);
+    boardHeight = Math.floor(newHeight);
+    scaleFactor = boardWidth / baseBoardWidth;
+    
+    // Update canvas dimensions
+    board.width = boardWidth;
+    board.height = boardHeight;
+    
+    // Update scaled dimensions
+    birdWidth = Math.floor(baseBirdWidth * scaleFactor);
+    birdHeight = Math.floor(baseBirdHeight * scaleFactor);
+    birdX = boardWidth / 8;
+    birdY = boardHeight / 2;
+    
+    pipeWidth = Math.floor(basePipeWidth * scaleFactor);
+    pipeHeight = Math.floor(basePipeHeight * scaleFactor);
+    pipeX = boardWidth;
+    
+    // Update bird object
+    bird.x = birdX;
+    bird.y = birdY;
+    bird.width = birdWidth;
+    bird.height = birdHeight;
+    
+    // Update GIF elements
+    if (gamestartGifElement) {
+        gamestartGifElement.style.width = boardWidth + 'px';
+        gamestartGifElement.style.height = boardHeight + 'px';
+    }
+    if (gameoverGifElement) {
+        gameoverGifElement.style.width = boardWidth + 'px';
+        gameoverGifElement.style.height = boardHeight + 'px';
+    }
+    
+    // Update offscreen canvas
+    if (offscreenCanvas) {
+        offscreenCanvas.width = boardWidth;
+        offscreenCanvas.height = boardHeight;
+    }
+    
+    // Scale physics values
+    velocityX = baseVelocityX * scaleFactor;
+    gravity = baseGravity * scaleFactor;
+}
 
 window.onload = function() {
     board = document.getElementById("board");
-    board.height = boardHeight;
-    board.width = boardWidth;
     context = board.getContext("2d"); //used for drawing on the board
     
-    // Get references to GIF elements and set their dimensions
+    // Get references to GIF elements
     gamestartGifElement = document.getElementById("gamestart-gif");
     gameoverGifElement = document.getElementById("gameover-gif");
     
-    if (gamestartGifElement) {
-        gamestartGifElement.width = boardWidth;
-        gamestartGifElement.height = boardHeight;
-    }
-    if (gameoverGifElement) {
-        gameoverGifElement.width = boardWidth;
-        gameoverGifElement.height = boardHeight;
-    }
+    // Calculate initial canvas size
+    calculateCanvasSize();
     
     // Create offscreen canvas for blur effect
     offscreenCanvas = document.createElement("canvas");
     offscreenCanvas.width = boardWidth;
     offscreenCanvas.height = boardHeight;
     offscreenContext = offscreenCanvas.getContext("2d");
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+        calculateCanvasSize();
+        // Reset game state if needed (optional - you might want to keep playing)
+        if (!gameStarted || gameOver) {
+            // Only reset if not actively playing
+        }
+    });
 
     //draw flappy bird
     // context.fillStyle = "green";
@@ -159,6 +269,11 @@ function update() {
         return;
     }
     
+    if (showEndGameMessage) {
+        drawEndGameMessageScreen();
+        return;
+    }
+    
     if (gameOver) {
         drawGameOverScreen();
         return;
@@ -176,7 +291,8 @@ function update() {
     let currentTime = Date.now();
     
     // Check for random pause (every 15-20 seconds on average)
-    if (!isPaused && gameStartTime > 0) {
+    // Don't pause if we're about to show end-game message
+    if (!isPaused && gameStartTime > 0 && !showEndGameMessage) {
         let timeSinceLastPause = currentTime - lastPauseCheck;
         if (timeSinceLastPause > 7000) { // Check every 7 seconds
             // 25% chance to pause each check (averages to ~20 seconds between pauses)
@@ -262,15 +378,17 @@ function update() {
     //display time
     let timeString = formatTime(elapsedTime);
     context.fillStyle = "white";
-    context.font="45px sans-serif";
-    context.fillText(timeString, 5, 45);
+    let fontSize = Math.floor(45 * scaleFactor);
+    context.font = fontSize + "px sans-serif";
+    context.fillText(timeString, 5 * scaleFactor, 45 * scaleFactor);
     
     // Show birth message if needed
     if (showBirthMessage) {
         let messageTime = Date.now() - birthMessageTime;
         if (messageTime < 3000) { // Show for 3 seconds
             context.fillStyle = "yellow";
-            context.font = "bold 40px sans-serif";
+            let fontSize = Math.floor(40 * scaleFactor);
+            context.font = "bold " + fontSize + "px sans-serif";
             context.textAlign = "center";
             context.fillText("Congratulations! A baby girl is born", boardWidth/2, boardHeight/2);
             context.textAlign = "left";
@@ -289,7 +407,7 @@ function placePipes() {
     // 0 -> -128 (pipeHeight/4)
     // 1 -> -128 - 256 (pipeHeight/4 - pipeHeight/2) = -3/4 pipeHeight
     let randomPipeY = pipeY - pipeHeight/4 - Math.random()*(pipeHeight/2);
-    let openingSpace = board.height/2.5; //larger gap for easier passage
+    let openingSpace = boardHeight/2.5; //larger gap for easier passage
 
     let topPipe = {
         img : topPipeImg,
@@ -400,8 +518,9 @@ function drawGameStateToCanvas(ctx) {
     //display time
     let timeString = formatTime(elapsedTime);
     ctx.fillStyle = "white";
-    ctx.font="45px sans-serif";
-    ctx.fillText(timeString, 5, 45);
+    let fontSize = Math.floor(45 * scaleFactor);
+    ctx.font = fontSize + "px sans-serif";
+    ctx.fillText(timeString, 5 * scaleFactor, 45 * scaleFactor);
 }
 
 function drawPausedScreen() {
@@ -434,25 +553,28 @@ function drawPausedScreen() {
     
     // Draw "RANDOM FACT" title
     context.fillStyle = "white";
-    context.font = "bold 50px sans-serif";
+    let titleFontSize = Math.floor(50 * scaleFactor);
+    context.font = "bold " + titleFontSize + "px sans-serif";
     context.textAlign = "center";
     context.strokeStyle = "black";
-    context.lineWidth = 3;
-    context.strokeText("RANDOM FACT", boardWidth/2, boardHeight/2 - 100);
-    context.fillText("RANDOM FACT", boardWidth/2, boardHeight/2 - 100);
+    context.lineWidth = Math.max(1, Math.floor(3 * scaleFactor));
+    let titleY = boardHeight/2 - (100 * scaleFactor);
+    context.strokeText("RANDOM FACT", boardWidth/2, titleY);
+    context.fillText("RANDOM FACT", boardWidth/2, titleY);
     
     // Draw the random fact (wrapped text)
-    context.font = "30px sans-serif";
+    let factFontSize = Math.floor(30 * scaleFactor);
+    context.font = factFontSize + "px sans-serif";
     context.fillStyle = "yellow";
     context.strokeStyle = "black";
-    context.lineWidth = 2;
+    context.lineWidth = Math.max(1, Math.floor(2 * scaleFactor));
     
     // Word wrap the fact text
     let words = currentRandomFact.split(' ');
     let line = '';
     let y = boardHeight/2;
-    let maxWidth = boardWidth - 100;
-    let lineHeight = 40;
+    let maxWidth = boardWidth - (100 * scaleFactor);
+    let lineHeight = 40 * scaleFactor;
     
     for (let i = 0; i < words.length; i++) {
         let testLine = line + words[i] + ' ';
@@ -472,13 +594,91 @@ function drawPausedScreen() {
     context.fillText(line, boardWidth/2, y);
     
     // Instructions
-    context.font = "25px sans-serif";
+    let instructionFontSize = Math.floor(25 * scaleFactor);
+    context.font = instructionFontSize + "px sans-serif";
     context.fillStyle = "white";
     context.strokeStyle = "black";
-    context.lineWidth = 2;
+    context.lineWidth = Math.max(1, Math.floor(2 * scaleFactor));
     let instructionText = `Press SPACE ${3 - spacebarPressCount} more time${3 - spacebarPressCount !== 1 ? 's' : ''} to continue`;
-    context.strokeText(instructionText, boardWidth/2, boardHeight - 50);
-    context.fillText(instructionText, boardWidth/2, boardHeight - 50);
+    let instructionY = boardHeight - (50 * scaleFactor);
+    context.strokeText(instructionText, boardWidth/2, instructionY);
+    context.fillText(instructionText, boardWidth/2, instructionY);
+    
+    context.textAlign = "left";
+}
+
+function drawEndGameMessageScreen() {
+    // Draw game state first, then overlay message screen
+    drawGameState();
+    
+    // Gradually increase blur
+    let blurAmount = 8; // Full blur for end-game message
+    
+    // Draw game state to offscreen canvas first
+    offscreenContext.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+    drawGameStateToCanvas(offscreenContext);
+    
+    // Clear main canvas
+    context.clearRect(0, 0, board.width, board.height);
+    
+    // Save context state
+    context.save();
+    
+    // Apply blur filter to the context
+    context.filter = `blur(${blurAmount}px)`;
+    
+    // Draw the blurred game state from offscreen canvas
+    context.drawImage(offscreenCanvas, 0, 0);
+    
+    // Restore context (removes blur filter for text)
+    context.restore();
+    
+    // Apply semi-transparent dark overlay for better text visibility
+    context.fillStyle = `rgba(0, 0, 0, 0.7)`;
+    context.fillRect(0, 0, board.width, board.height);
+    
+    // Draw the end-game message (wrapped text)
+    let messageFontSize = Math.floor(35 * scaleFactor);
+    context.font = messageFontSize + "px sans-serif";
+    context.fillStyle = "white";
+    context.strokeStyle = "black";
+    context.lineWidth = Math.max(1, Math.floor(3 * scaleFactor));
+    context.textAlign = "center";
+    
+    // Word wrap the message text
+    let words = currentEndGameMessage.split(' ');
+    let line = '';
+    let y = boardHeight/2 - (50 * scaleFactor);
+    let maxWidth = boardWidth - (80 * scaleFactor);
+    let lineHeight = 45 * scaleFactor;
+    
+    for (let i = 0; i < words.length; i++) {
+        let testLine = line + words[i] + ' ';
+        let metrics = context.measureText(testLine);
+        let testWidth = metrics.width;
+        
+        if (testWidth > maxWidth && i > 0) {
+            context.strokeText(line, boardWidth/2, y);
+            context.fillText(line, boardWidth/2, y);
+            line = words[i] + ' ';
+            y += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+    context.strokeText(line, boardWidth/2, y);
+    context.fillText(line, boardWidth/2, y);
+    
+    // Instructions
+    let instructionFontSize = Math.floor(25 * scaleFactor);
+    context.font = instructionFontSize + "px sans-serif";
+    context.fillStyle = "yellow";
+    context.strokeStyle = "black";
+    context.lineWidth = Math.max(1, Math.floor(2 * scaleFactor));
+    let instructionText = `Press SPACE ${3 - endGameMessagePressCount} more time${3 - endGameMessagePressCount !== 1 ? 's' : ''} to continue`;
+    let instructionY = boardHeight - (60 * scaleFactor);
+    context.strokeText(instructionText, boardWidth/2, instructionY);
+    context.fillText(instructionText, boardWidth/2, instructionY);
     
     context.textAlign = "left";
 }
@@ -498,6 +698,17 @@ function handleKeyPress(e) {
             return;
         }
         
+        // Handle end-game message screen (requires 3 spacebar presses)
+        if (showEndGameMessage) {
+            endGameMessagePressCount++;
+            if (endGameMessagePressCount >= 3) {
+                showEndGameMessage = false;
+                endGameMessagePressCount = 0;
+                gameOver = true; // Transition to game over screen
+            }
+            return;
+        }
+        
         // Start game from start screen
         if (!gameStarted) {
             gameStarted = true;
@@ -510,12 +721,26 @@ function handleKeyPress(e) {
             bird.x = birdX;
             velocityY = 0; // Reset velocity
             pipeArray = [];
+            totalSpacebarPresses = 0; // Reset press counter
+            endGameMessagePressCount = 0;
+            showEndGameMessage = false;
+            // Randomly select a threshold for this game
+            selectedPressThreshold = pressThresholds[Math.floor(Math.random() * pressThresholds.length)];
             return;
         }
         
         // Jump during gameplay
-        if (!gameOver && !isPaused) {
-            velocityY = -8; //increased for larger bird
+        if (!gameOver && !isPaused && !showEndGameMessage) {
+            velocityY = baseJumpVelocity * scaleFactor; //scaled jump velocity
+            totalSpacebarPresses++; // Track total presses
+            
+            // Check if we've reached the selected threshold
+            if (totalSpacebarPresses >= selectedPressThreshold.presses) {
+                showEndGameMessage = true;
+                currentEndGameMessage = selectedPressThreshold.message;
+                endGameMessagePressCount = 0;
+                gameOver = false; // Don't show game over yet, show message first
+            }
         }
         
         // Reset game from game over screen
@@ -535,6 +760,11 @@ function handleKeyPress(e) {
             currentTimeIncrementIndex = 0;
             showBirthMessage = true;
             birthMessageTime = Date.now();
+            totalSpacebarPresses = 0; // Reset press counter
+            endGameMessagePressCount = 0;
+            showEndGameMessage = false;
+            // Randomly select a new threshold for the next game
+            selectedPressThreshold = pressThresholds[Math.floor(Math.random() * pressThresholds.length)];
         }
     }
 }

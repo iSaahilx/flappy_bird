@@ -547,7 +547,7 @@ function triggerGameOverWithFact(message) {
         // After 2 more seconds, go to start screen
         gameOverTimeoutId = setTimeout(function() {
             resetToStartScreen();
-        }, 2000);
+        }, 4000);
     }, 3000);
 }
 
@@ -565,7 +565,7 @@ function triggerNormalGameOver() {
     // Auto-return to start screen after 2 seconds
     gameOverTimeoutId = setTimeout(function() {
         resetToStartScreen();
-    }, 2000);
+    }, 4000);
 }
 
 function resetToStartScreen() {

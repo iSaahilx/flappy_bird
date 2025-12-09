@@ -7,6 +7,8 @@ let boardWidth = 1050;
 let boardHeight = 600;
 let context;
 let scaleFactor = 1;
+let isFullscreen = false;
+let gameContainer; // Container for fullscreen
 
 //bird
 let baseBirdWidth = 70; //increased size for landscape
@@ -87,10 +89,10 @@ let showEndGameMessage = false; // Whether to show end-game message
 let currentEndGameMessage = ""; // Current end-game message to display
 let endGameMessagePressCount = 0; // Track spacebar presses on end-game message screen
 let selectedPressThreshold = 0; // Randomly selected threshold for this game
-let gameOverFactMessage = ""; // Fact to display on game over screen
-let gameOverFactOverlay = null; // DOM overlay for game over fact text
+let gameOverFactMessage = ""; // Fact to display on black screen
 let gameOverTimeoutId = null; // Timeout to auto-return to start screen
 let gameOverLocked = false; // Prevent input while game over screen is locked
+let showBlackFactScreen = false; // Whether to show black screen with fact before game over
 let pressThresholds = [
     {presses: 20, message: "A girl disappears from the statistics every few minutes; the numbers do not stop, even if the game does."},
     {presses: 30, message: "The country reports improvement, yet thousands of daughters remain missing from the count."},
@@ -205,30 +207,11 @@ function calculateCanvasSize() {
 window.onload = function() {
     board = document.getElementById("board");
     context = board.getContext("2d"); //used for drawing on the board
+    gameContainer = document.getElementById("game-container");
     
     // Get references to GIF elements
     gamestartGifElement = document.getElementById("gamestart-gif");
     gameoverGifElement = document.getElementById("gameover-gif");
-    
-    // Create overlay for game-over fact text
-    gameOverFactOverlay = document.createElement("div");
-    gameOverFactOverlay.id = "gameover-fact-overlay";
-    gameOverFactOverlay.style.position = "absolute";
-    gameOverFactOverlay.style.top = "12%";
-    gameOverFactOverlay.style.left = "50%";
-    gameOverFactOverlay.style.transform = "translateX(-50%)";
-    gameOverFactOverlay.style.width = "80%";
-    gameOverFactOverlay.style.maxWidth = "900px";
-    gameOverFactOverlay.style.color = "white";
-    gameOverFactOverlay.style.fontFamily = "sans-serif";
-    gameOverFactOverlay.style.fontSize = "28px";
-    gameOverFactOverlay.style.fontWeight = "bold";
-    gameOverFactOverlay.style.textAlign = "center";
-    gameOverFactOverlay.style.textShadow = "2px 2px 4px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8)";
-    gameOverFactOverlay.style.zIndex = "20";
-    gameOverFactOverlay.style.pointerEvents = "none";
-    gameOverFactOverlay.style.display = "none";
-    document.body.appendChild(gameOverFactOverlay);
     
     // Calculate initial canvas size
     calculateCanvasSize();
@@ -242,11 +225,13 @@ window.onload = function() {
     // Handle window resize
     window.addEventListener('resize', function() {
         calculateCanvasSize();
-        // Reset game state if needed (optional - you might want to keep playing)
-        if (!gameStarted || gameOver) {
-            // Only reset if not actively playing
-        }
     });
+    
+    // Handle fullscreen change
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
     //draw flappy bird
     // context.fillStyle = "green";
@@ -293,20 +278,22 @@ function update() {
         return;
     }
     
+    if (showBlackFactScreen) {
+        drawBlackFactScreen();
+        return;
+    }
+    
     if (gameOver) {
         drawGameOverScreen();
         return;
     }
     
-    // Hide GIFs and overlay during gameplay
+    // Hide GIFs during gameplay
     if (gamestartGifElement) {
         gamestartGifElement.style.display = "none";
     }
     if (gameoverGifElement) {
         gameoverGifElement.style.display = "none";
-    }
-    if (gameOverFactOverlay) {
-        gameOverFactOverlay.style.display = "none";
     }
     
     // Update time
@@ -455,12 +442,9 @@ function placePipes() {
 }
 
 function drawStartScreen() {
-    // Hide game over GIF and fact overlay
+    // Hide game over GIF
     if (gameoverGifElement) {
         gameoverGifElement.style.display = "none";
-    }
-    if (gameOverFactOverlay) {
-        gameOverFactOverlay.style.display = "none";
     }
     
     // Show animated start GIF
@@ -497,19 +481,57 @@ function drawGameOverScreen() {
             context.fillRect(0, 0, boardWidth, boardHeight);
         }
     }
-    
-    // Show the fact overlay if there's a message
-    if (gameOverFactOverlay && gameOverFactMessage) {
-        gameOverFactOverlay.innerText = gameOverFactMessage;
-        gameOverFactOverlay.style.fontSize = Math.floor(24 * scaleFactor) + "px";
-        gameOverFactOverlay.style.display = "block";
+}
+
+function drawBlackFactScreen() {
+    // Hide all GIFs
+    if (gamestartGifElement) {
+        gamestartGifElement.style.display = "none";
     }
+    if (gameoverGifElement) {
+        gameoverGifElement.style.display = "none";
+    }
+    
+    // Draw black background
+    context.fillStyle = "black";
+    context.fillRect(0, 0, boardWidth, boardHeight);
+    
+    // Draw the fact message (wrapped text)
+    let factFontSize = Math.floor(32 * scaleFactor);
+    context.font = factFontSize + "px sans-serif";
+    context.fillStyle = "white";
+    context.textAlign = "center";
+    
+    // Word wrap the fact text
+    let words = gameOverFactMessage.split(' ');
+    let line = '';
+    let y = boardHeight/2 - (60 * scaleFactor);
+    let maxWidth = boardWidth - (100 * scaleFactor);
+    let lineHeight = 45 * scaleFactor;
+    
+    for (let i = 0; i < words.length; i++) {
+        let testLine = line + words[i] + ' ';
+        let metrics = context.measureText(testLine);
+        let testWidth = metrics.width;
+        
+        if (testWidth > maxWidth && i > 0) {
+            context.fillText(line, boardWidth/2, y);
+            line = words[i] + ' ';
+            y += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+    context.fillText(line, boardWidth/2, y);
+    
+    context.textAlign = "left";
 }
 
 function triggerGameOverWithFact(message) {
-    // Set the fact message and trigger game over
+    // Set the fact message and show black screen first
     gameOverFactMessage = message || "";
-    gameOver = true;
+    showBlackFactScreen = true;
+    gameOver = false;
     gameOverLocked = true;
     
     // Clear any existing timeout
@@ -517,10 +539,16 @@ function triggerGameOverWithFact(message) {
         clearTimeout(gameOverTimeoutId);
     }
     
-    // Auto-return to start screen after 5 seconds
+    // After 3 seconds, show game over GIF
     gameOverTimeoutId = setTimeout(function() {
-        resetToStartScreen();
-    }, 5000);
+        showBlackFactScreen = false;
+        gameOver = true;
+        
+        // After 2 more seconds, go to start screen
+        gameOverTimeoutId = setTimeout(function() {
+            resetToStartScreen();
+        }, 2000);
+    }, 3000);
 }
 
 function triggerNormalGameOver() {
@@ -552,6 +580,7 @@ function resetToStartScreen() {
     gameStarted = false;
     gameOverLocked = false;
     gameOverFactMessage = "";
+    showBlackFactScreen = false;
     isPaused = false;
     showBirthMessage = false;
     spacebarPressCount = 0;
@@ -570,11 +599,6 @@ function resetToStartScreen() {
     gameStartTime = 0;
     lastTimeUpdate = 0;
     lastPauseCheck = 0;
-    
-    // Hide overlay
-    if (gameOverFactOverlay) {
-        gameOverFactOverlay.style.display = "none";
-    }
 }
 
 function formatTime(milliseconds) {
@@ -703,6 +727,12 @@ function drawPausedScreen() {
 }
 
 function handleKeyPress(e) {
+    // Toggle fullscreen with F key
+    if (e.code == "KeyF") {
+        toggleFullscreen();
+        return;
+    }
+    
     if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX") {
         // Ignore all input when game over is locked (5 second wait)
         if (gameOverLocked) {
@@ -772,10 +802,7 @@ function handleKeyPress(e) {
             birthMessageTime = Date.now();
             totalSpacebarPresses = 0; // Reset press counter
             gameOverFactMessage = ""; // Clear fact message
-            // Hide overlay
-            if (gameOverFactOverlay) {
-                gameOverFactOverlay.style.display = "none";
-            }
+            showBlackFactScreen = false;
             // Randomly select a new threshold for the next game
             selectedPressThreshold = pressThresholds[Math.floor(Math.random() * pressThresholds.length)];
         }
@@ -810,4 +837,47 @@ function detectCollision(a, b) {
            adjustedA.x + adjustedA.width > adjustedB.x &&   //a's top right corner passes b's top left corner
            adjustedA.y < adjustedB.y + adjustedB.height &&  //a's top left corner doesn't reach b's bottom left corner
            adjustedA.y + adjustedA.height > adjustedB.y;    //a's bottom left corner passes b's top left corner
+}
+
+// Fullscreen functions
+function toggleFullscreen() {
+    if (!document.fullscreenElement && 
+        !document.webkitFullscreenElement && 
+        !document.mozFullScreenElement && 
+        !document.msFullscreenElement) {
+        // Enter fullscreen
+        let element = gameContainer || document.documentElement;
+        if (element.requestFullscreen) {
+            element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+            element.webkitRequestFullscreen();
+        } else if (element.mozRequestFullScreen) {
+            element.mozRequestFullScreen();
+        } else if (element.msRequestFullscreen) {
+            element.msRequestFullscreen();
+        }
+    } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    }
+}
+
+function handleFullscreenChange() {
+    isFullscreen = !!(document.fullscreenElement || 
+                      document.webkitFullscreenElement || 
+                      document.mozFullScreenElement || 
+                      document.msFullscreenElement);
+    
+    // Recalculate canvas size after fullscreen change
+    setTimeout(function() {
+        calculateCanvasSize();
+    }, 100);
 }

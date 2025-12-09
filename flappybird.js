@@ -87,6 +87,10 @@ let showEndGameMessage = false; // Whether to show end-game message
 let currentEndGameMessage = ""; // Current end-game message to display
 let endGameMessagePressCount = 0; // Track spacebar presses on end-game message screen
 let selectedPressThreshold = 0; // Randomly selected threshold for this game
+let gameOverFactMessage = ""; // Fact to display on game over screen
+let gameOverFactOverlay = null; // DOM overlay for game over fact text
+let gameOverTimeoutId = null; // Timeout to auto-return to start screen
+let gameOverLocked = false; // Prevent input while game over screen is locked
 let pressThresholds = [
     {presses: 20, message: "A girl disappears from the statistics every few minutes; the numbers do not stop, even if the game does."},
     {presses: 30, message: "The country reports improvement, yet thousands of daughters remain missing from the count."},
@@ -120,7 +124,7 @@ const randomFacts = [
     "Jharkhand once respected mother figures, but the numbers now tell a harsher story.",
     "West Bengal speaks of progress, while its girl count quietly disagrees.",
     "Tamil Nadu developed fast, but daughter protection developed slowly.",
-    "Karnataka builds modern cities, but rural areas still delete daughters before birth.",
+    "Karnataka builds modern cities, but rural areas still murder daughters before birth.",
     "Andhra and Telangana grow in technology, including silent misuse for sex selection.",
     "Madhya Pradesh is the heart of India, but its heartbeat for girls stays low.",
     "Chhattisgarh holds many resources, yet daughters remain the rarest one.",
@@ -206,6 +210,26 @@ window.onload = function() {
     gamestartGifElement = document.getElementById("gamestart-gif");
     gameoverGifElement = document.getElementById("gameover-gif");
     
+    // Create overlay for game-over fact text
+    gameOverFactOverlay = document.createElement("div");
+    gameOverFactOverlay.id = "gameover-fact-overlay";
+    gameOverFactOverlay.style.position = "absolute";
+    gameOverFactOverlay.style.top = "12%";
+    gameOverFactOverlay.style.left = "50%";
+    gameOverFactOverlay.style.transform = "translateX(-50%)";
+    gameOverFactOverlay.style.width = "80%";
+    gameOverFactOverlay.style.maxWidth = "900px";
+    gameOverFactOverlay.style.color = "white";
+    gameOverFactOverlay.style.fontFamily = "sans-serif";
+    gameOverFactOverlay.style.fontSize = "28px";
+    gameOverFactOverlay.style.fontWeight = "bold";
+    gameOverFactOverlay.style.textAlign = "center";
+    gameOverFactOverlay.style.textShadow = "2px 2px 4px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8)";
+    gameOverFactOverlay.style.zIndex = "20";
+    gameOverFactOverlay.style.pointerEvents = "none";
+    gameOverFactOverlay.style.display = "none";
+    document.body.appendChild(gameOverFactOverlay);
+    
     // Calculate initial canvas size
     calculateCanvasSize();
     
@@ -269,22 +293,20 @@ function update() {
         return;
     }
     
-    if (showEndGameMessage) {
-        drawEndGameMessageScreen();
-        return;
-    }
-    
     if (gameOver) {
         drawGameOverScreen();
         return;
     }
     
-    // Hide GIFs during gameplay
+    // Hide GIFs and overlay during gameplay
     if (gamestartGifElement) {
         gamestartGifElement.style.display = "none";
     }
     if (gameoverGifElement) {
         gameoverGifElement.style.display = "none";
+    }
+    if (gameOverFactOverlay) {
+        gameOverFactOverlay.style.display = "none";
     }
     
     // Update time
@@ -352,7 +374,8 @@ function update() {
     context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 
     if (bird.y > board.height) {
-        gameOver = true;
+        triggerNormalGameOver();
+        return;
     }
 
     //pipes
@@ -366,7 +389,8 @@ function update() {
         }
 
         if (detectCollision(bird, pipe)) {
-            gameOver = true;
+            triggerNormalGameOver();
+            return;
         }
     }
 
@@ -431,9 +455,12 @@ function placePipes() {
 }
 
 function drawStartScreen() {
-    // Hide game over GIF if visible
+    // Hide game over GIF and fact overlay
     if (gameoverGifElement) {
         gameoverGifElement.style.display = "none";
+    }
+    if (gameOverFactOverlay) {
+        gameOverFactOverlay.style.display = "none";
     }
     
     // Show animated start GIF
@@ -469,6 +496,84 @@ function drawGameOverScreen() {
             context.fillStyle = "#87CEEB";
             context.fillRect(0, 0, boardWidth, boardHeight);
         }
+    }
+    
+    // Show the fact overlay if there's a message
+    if (gameOverFactOverlay && gameOverFactMessage) {
+        gameOverFactOverlay.innerText = gameOverFactMessage;
+        gameOverFactOverlay.style.fontSize = Math.floor(24 * scaleFactor) + "px";
+        gameOverFactOverlay.style.display = "block";
+    }
+}
+
+function triggerGameOverWithFact(message) {
+    // Set the fact message and trigger game over
+    gameOverFactMessage = message || "";
+    gameOver = true;
+    gameOverLocked = true;
+    
+    // Clear any existing timeout
+    if (gameOverTimeoutId) {
+        clearTimeout(gameOverTimeoutId);
+    }
+    
+    // Auto-return to start screen after 5 seconds
+    gameOverTimeoutId = setTimeout(function() {
+        resetToStartScreen();
+    }, 5000);
+}
+
+function triggerNormalGameOver() {
+    // Normal game over (collision or falling)
+    gameOverFactMessage = ""; // No fact message
+    gameOver = true;
+    gameOverLocked = true;
+    
+    // Clear any existing timeout
+    if (gameOverTimeoutId) {
+        clearTimeout(gameOverTimeoutId);
+    }
+    
+    // Auto-return to start screen after 2 seconds
+    gameOverTimeoutId = setTimeout(function() {
+        resetToStartScreen();
+    }, 2000);
+}
+
+function resetToStartScreen() {
+    // Clear timeout if exists
+    if (gameOverTimeoutId) {
+        clearTimeout(gameOverTimeoutId);
+        gameOverTimeoutId = null;
+    }
+    
+    // Reset all game state
+    gameOver = false;
+    gameStarted = false;
+    gameOverLocked = false;
+    gameOverFactMessage = "";
+    isPaused = false;
+    showBirthMessage = false;
+    spacebarPressCount = 0;
+    totalSpacebarPresses = 0;
+    endGameMessagePressCount = 0;
+    showEndGameMessage = false;
+    currentEndGameMessage = "";
+    
+    // Reset bird and game values
+    bird.x = birdX;
+    bird.y = birdY;
+    velocityY = 0;
+    pipeArray = [];
+    elapsedTime = 0;
+    currentTimeIncrementIndex = 0;
+    gameStartTime = 0;
+    lastTimeUpdate = 0;
+    lastPauseCheck = 0;
+    
+    // Hide overlay
+    if (gameOverFactOverlay) {
+        gameOverFactOverlay.style.display = "none";
     }
 }
 
@@ -551,23 +656,13 @@ function drawPausedScreen() {
     context.fillStyle = `rgba(0, 0, 0, 0.5)`;
     context.fillRect(0, 0, board.width, board.height);
     
-    // Draw "RANDOM FACT" title
-    context.fillStyle = "white";
-    let titleFontSize = Math.floor(50 * scaleFactor);
-    context.font = "bold " + titleFontSize + "px sans-serif";
-    context.textAlign = "center";
-    context.strokeStyle = "black";
-    context.lineWidth = Math.max(1, Math.floor(3 * scaleFactor));
-    let titleY = boardHeight/2 - (100 * scaleFactor);
-    context.strokeText("RANDOM FACT", boardWidth/2, titleY);
-    context.fillText("RANDOM FACT", boardWidth/2, titleY);
-    
     // Draw the random fact (wrapped text)
     let factFontSize = Math.floor(30 * scaleFactor);
     context.font = factFontSize + "px sans-serif";
     context.fillStyle = "yellow";
     context.strokeStyle = "black";
     context.lineWidth = Math.max(1, Math.floor(2 * scaleFactor));
+    context.textAlign = "center";
     
     // Word wrap the fact text
     let words = currentRandomFact.split(' ');
@@ -599,84 +694,8 @@ function drawPausedScreen() {
     context.fillStyle = "white";
     context.strokeStyle = "black";
     context.lineWidth = Math.max(1, Math.floor(2 * scaleFactor));
-    let instructionText = `Press SPACE ${3 - spacebarPressCount} more time${3 - spacebarPressCount !== 1 ? 's' : ''} to continue`;
+    let instructionText = "Press SPACE to continue";
     let instructionY = boardHeight - (50 * scaleFactor);
-    context.strokeText(instructionText, boardWidth/2, instructionY);
-    context.fillText(instructionText, boardWidth/2, instructionY);
-    
-    context.textAlign = "left";
-}
-
-function drawEndGameMessageScreen() {
-    // Draw game state first, then overlay message screen
-    drawGameState();
-    
-    // Gradually increase blur
-    let blurAmount = 8; // Full blur for end-game message
-    
-    // Draw game state to offscreen canvas first
-    offscreenContext.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-    drawGameStateToCanvas(offscreenContext);
-    
-    // Clear main canvas
-    context.clearRect(0, 0, board.width, board.height);
-    
-    // Save context state
-    context.save();
-    
-    // Apply blur filter to the context
-    context.filter = `blur(${blurAmount}px)`;
-    
-    // Draw the blurred game state from offscreen canvas
-    context.drawImage(offscreenCanvas, 0, 0);
-    
-    // Restore context (removes blur filter for text)
-    context.restore();
-    
-    // Apply semi-transparent dark overlay for better text visibility
-    context.fillStyle = `rgba(0, 0, 0, 0.7)`;
-    context.fillRect(0, 0, board.width, board.height);
-    
-    // Draw the end-game message (wrapped text)
-    let messageFontSize = Math.floor(35 * scaleFactor);
-    context.font = messageFontSize + "px sans-serif";
-    context.fillStyle = "white";
-    context.strokeStyle = "black";
-    context.lineWidth = Math.max(1, Math.floor(3 * scaleFactor));
-    context.textAlign = "center";
-    
-    // Word wrap the message text
-    let words = currentEndGameMessage.split(' ');
-    let line = '';
-    let y = boardHeight/2 - (50 * scaleFactor);
-    let maxWidth = boardWidth - (80 * scaleFactor);
-    let lineHeight = 45 * scaleFactor;
-    
-    for (let i = 0; i < words.length; i++) {
-        let testLine = line + words[i] + ' ';
-        let metrics = context.measureText(testLine);
-        let testWidth = metrics.width;
-        
-        if (testWidth > maxWidth && i > 0) {
-            context.strokeText(line, boardWidth/2, y);
-            context.fillText(line, boardWidth/2, y);
-            line = words[i] + ' ';
-            y += lineHeight;
-        } else {
-            line = testLine;
-        }
-    }
-    context.strokeText(line, boardWidth/2, y);
-    context.fillText(line, boardWidth/2, y);
-    
-    // Instructions
-    let instructionFontSize = Math.floor(25 * scaleFactor);
-    context.font = instructionFontSize + "px sans-serif";
-    context.fillStyle = "yellow";
-    context.strokeStyle = "black";
-    context.lineWidth = Math.max(1, Math.floor(2 * scaleFactor));
-    let instructionText = `Press SPACE ${3 - endGameMessagePressCount} more time${3 - endGameMessagePressCount !== 1 ? 's' : ''} to continue`;
-    let instructionY = boardHeight - (60 * scaleFactor);
     context.strokeText(instructionText, boardWidth/2, instructionY);
     context.fillText(instructionText, boardWidth/2, instructionY);
     
@@ -685,6 +704,11 @@ function drawEndGameMessageScreen() {
 
 function handleKeyPress(e) {
     if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX") {
+        // Ignore all input when game over is locked (5 second wait)
+        if (gameOverLocked) {
+            return;
+        }
+        
         // Resume from pause (requires 3 spacebar presses)
         if (isPaused) {
             spacebarPressCount++;
@@ -694,17 +718,6 @@ function handleKeyPress(e) {
                 spacebarPressCount = 0; // Reset counter
                 board.style.filter = 'none'; // Remove blur filter
                 lastPauseCheck = Date.now();
-            }
-            return;
-        }
-        
-        // Handle end-game message screen (requires 3 spacebar presses)
-        if (showEndGameMessage) {
-            endGameMessagePressCount++;
-            if (endGameMessagePressCount >= 3) {
-                showEndGameMessage = false;
-                endGameMessagePressCount = 0;
-                gameOver = true; // Transition to game over screen
             }
             return;
         }
@@ -722,29 +735,26 @@ function handleKeyPress(e) {
             velocityY = 0; // Reset velocity
             pipeArray = [];
             totalSpacebarPresses = 0; // Reset press counter
-            endGameMessagePressCount = 0;
-            showEndGameMessage = false;
+            gameOverFactMessage = ""; // Clear any previous fact message
             // Randomly select a threshold for this game
             selectedPressThreshold = pressThresholds[Math.floor(Math.random() * pressThresholds.length)];
             return;
         }
         
         // Jump during gameplay
-        if (!gameOver && !isPaused && !showEndGameMessage) {
+        if (!gameOver && !isPaused) {
             velocityY = baseJumpVelocity * scaleFactor; //scaled jump velocity
             totalSpacebarPresses++; // Track total presses
             
             // Check if we've reached the selected threshold
             if (totalSpacebarPresses >= selectedPressThreshold.presses) {
-                showEndGameMessage = true;
-                currentEndGameMessage = selectedPressThreshold.message;
-                endGameMessagePressCount = 0;
-                gameOver = false; // Don't show game over yet, show message first
+                // Go directly to game over screen with fact overlay
+                triggerGameOverWithFact(selectedPressThreshold.message);
             }
         }
         
-        // Reset game from game over screen
-        if (gameOver) {
+        // Reset game from game over screen (only if not locked)
+        if (gameOver && !gameOverLocked) {
             gameOver = false;
             gameStarted = true; // Ensure game is started
             isPaused = false;
@@ -761,8 +771,11 @@ function handleKeyPress(e) {
             showBirthMessage = true;
             birthMessageTime = Date.now();
             totalSpacebarPresses = 0; // Reset press counter
-            endGameMessagePressCount = 0;
-            showEndGameMessage = false;
+            gameOverFactMessage = ""; // Clear fact message
+            // Hide overlay
+            if (gameOverFactOverlay) {
+                gameOverFactOverlay.style.display = "none";
+            }
             // Randomly select a new threshold for the next game
             selectedPressThreshold = pressThresholds[Math.floor(Math.random() * pressThresholds.length)];
         }
